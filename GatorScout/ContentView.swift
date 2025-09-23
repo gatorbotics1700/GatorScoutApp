@@ -4,7 +4,7 @@ import Foundation
 struct ScoutingFormView: View {
     let username: String
 
-    //@State private var teamNumber = ""
+    @State private var teamNumber = ""
     @State private var matchNumber = ""
     @State private var isSubmitting = false
 
@@ -43,9 +43,9 @@ struct ScoutingFormView: View {
     
     @State private var savedForms: [[String: Any]] = []
 
-    @StateObject private var viewModel = TeamsViewModel()
-    @State private var selectedTeamNumber = ""
-    @State private var selectedTeamIndex: Int?
+    // @StateObject private var viewModel = TeamsViewModel()
+    // @State private var selectedTeamNumber = ""
+    // @State private var selectedTeamIndex: Int?
 
         
     var body: some View {
@@ -63,7 +63,7 @@ struct ScoutingFormView: View {
                 VStack {
                     Form {
                         Section(header: Text("Match Information").foregroundColor(.darkGreenFont)) {
-                        VStack {
+                        /* VStack {
                             if viewModel.teams.isEmpty {
                                 ProgressView("Loading teams...")
                             } else {
@@ -84,14 +84,14 @@ struct ScoutingFormView: View {
                         .onAppear {
                             print("View appeared!") // Debugging
                             viewModel.fetchTeams()
-                        }
+                        } */
                         
-                            /*TextField("Team Number", text: $teamNumber)
+                            TextField("Team Number", text: $teamNumber)
                                 .keyboardType(.numberPad)
                                 .padding()
                                 .background(Color.white.opacity(0.8))
                                 .cornerRadius(8)
-                                .foregroundColor(.darkGreenFont)*/
+                                .foregroundColor(.darkGreenFont)
 
                             TextField("Match Number", text: $matchNumber)
                                 .keyboardType(.numberPad)
@@ -467,7 +467,8 @@ struct ScoutingFormView: View {
     }
 
     func submitData() {
-        guard !selectedTeamNumber.isEmpty else {
+        guard !teamNumber.isEmpty else {
+        // guard !selectedTeamNumber.isEmpty else {
             alertMessage = "Team Number is required."
             showErrorAlert = true
             return
@@ -489,7 +490,8 @@ struct ScoutingFormView: View {
 
         var formData: [String: Any] = [
             "Username": username,
-            "Team Number": selectedTeamNumber,
+            "Team Number": teamNumber,
+            // "Team Number": selectedTeamNumber,
             "Match Number": matchNumber,
             "Alliance": allianceColor,
             "Left starting line": leaveStartingLine ? "Yes" : "No",
@@ -526,7 +528,8 @@ struct ScoutingFormView: View {
     }
 
     func clearFields() {
-        selectedTeamNumber = ""
+        teamNumber = ""
+        // selectedTeamNumber = ""
         matchNumber = ""
         //Auto
         leaveStartingLine = false
