@@ -4,38 +4,84 @@ import Foundation
 struct ScoutingFormView: View {
     let username: String
 
-    @State private var teamNumber = ""
+    // Match information
+    // @State private var teamNumber = ""
+    @StateObject private var viewModel = TeamsViewModel()
+    @State private var searchText = ""
+    @State private var selectedTeamNumber: String = ""
+    @State private var selectedTeam: Int? = nil
+    @State private var showResults = false
     @State private var matchNumber = ""
+    @State private var allianceColor = "Red"
     @State private var isSubmitting = false
 
-    @State private var leaveStartingLine = false
-    @State private var autoCoralL1 = 0
-    @State private var autoCoralL2 = 0
-    @State private var autoCoralL3 = 0
-    @State private var autoCoralL4 = 0
-    @State private var autoAlgaeRemoved = 0
+    // Auto
+    @State private var autoScorePreload = false
+    @State private var autoOutpost = false
+    @State private var autoDepot = false
+    @State private var autoNeutral = false
+    @State private var autoCycling = false
+    @State private var autoCycles = 0
+    @State private var autoClimb = false
+    @State private var autoClimbLocation = ""
+    @State private var autoOther = ""
+    @State private var autoWon = true
 
-    @State private var teleopCoralL1 = 0
-    @State private var teleopCoralL2 = 0
-    @State private var teleopCoralL3 = 0
-    @State private var teleopCoralL4 = 0
-    @State private var teleopAlgaeRemoved = 0
-    @State private var algaeScoredNet = 0
-    @State private var algaeScoredProcessor = 0
+    // Teleop
+    @State private var inactive1Collecting = false
+    @State private var inactive1Passing = false
+    @State private var inactive1Ferrying = false
+    @State private var inactive1Defense = false
+    @State private var inactive1Other = ""
+    
+    @State private var active1Shooting = false
+    @State private var active1Passing = false
+    @State private var active1Ferrying = false
+    @State private var active1Cycling = false
+    @State private var active1Cycles = 0
+    @State private var active1Other = ""
+    
+    @State private var inactive2Collecting = false
+    @State private var inactive2Passing = false
+    @State private var inactive2Ferrying = false
+    @State private var inactive2Defense = false
+    @State private var inactive2Other = ""
+    
+    @State private var active2Shooting = false
+    @State private var active2Passing = false
+    @State private var active2Ferrying = false
+    @State private var active2Cycling = false
+    @State private var active2Cycles = 0
+    @State private var active2Other = ""
 
-    @State private var didDeepCage = false
-    @State private var didShallowCage = false
-    @State private var isParked = false
+    // Endgame
+    @State private var endgameShooting = false
+    @State private var endgamePassing = false
+    @State private var endgameFerrying = false
+    @State private var endgameDefense = false
+    @State private var endgameCycling = false
+    @State private var endgameCycles = 0
+    @State private var climbL1 = false
+    @State private var climbL2 = false
+    @State private var climbL3 = false
+    @State private var climbLocation = ""
+    @State private var endgameOther = ""
 
-    @State private var comments = ""
-
-    @State private var isOffense = false
-    @State private var isDefense = false
-
+    // Defense
+    @State private var defenseCollectOppFuel = false
+    @State private var defenseBlocking = false
+    @State private var defenseHitting = false
+    @State private var defensePinning = false
+    @State private var defenseOther = ""
+    
+    // Comments
     @State private var drivingScore: Double = 0.0
-
-    // Alliance selection
-    @State private var allianceColor = "Red"
+    @State private var intakeAbility: Double = 0.0
+    @State private var hopperCapacity: Double = 0.0
+    @State private var shotAccuracy: Double = 0.0
+    @State private var shootingLocationFlexibility: Double = 0.0
+    @State private var bumpVsTrench: Double = 3.0
+    @State private var comments = ""
 
     @State private var showErrorAlert = false
     @State private var showSuccessAlert = false
@@ -43,12 +89,17 @@ struct ScoutingFormView: View {
     
     @State private var savedForms: [[String: Any]] = []
 
-    // @StateObject private var viewModel = TeamsViewModel()
-    // @State private var selectedTeamNumber = ""
-    // @State private var selectedTeamIndex: Int?
-
         
     var body: some View {
+        var filteredTeams: [Int] {
+            let allTeams = viewModel.teams.map { $0.teamNumber }.sorted()
+            let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard !trimmed.isEmpty else { return allTeams }
+
+            return allTeams.filter { String($0).hasPrefix(trimmed) }
+        }
+        
         NavigationView {
             
             ZStack {
@@ -58,347 +109,737 @@ struct ScoutingFormView: View {
                                         UIApplication.shared.endEditing()
                                     }
                 
-               
-                
                 VStack {
                     Form {
-                        Section(header: Text("Match Information").foregroundColor(.darkGreenFont)) {
-                        /* VStack {
-                            if viewModel.teams.isEmpty {
-                                ProgressView("Loading teams...")
-                            } else {
-                                Picker("Select Team Number", selection: $selectedTeamIndex) {
-                                    ForEach(viewModel.teams.indices, id: \.self) { index in
-                                        let team = viewModel.teams[index]
-                                        Text("\(team.teamNumber)").tag(index) // Use index as tag
-                                    }
+                        Section(header: Text("Match Information").font(.title3).foregroundColor(.darkGreenFont)) {
+                            VStack(alignment: .leading, spacing: 8) {
+
+                                TextField("Type team number", text: $searchText, onEditingChanged: { _ in
+                                    showResults = true
+                                })
+                                .keyboardType(.numberPad)
+                                .textFieldStyle(.plain)
+                                .padding(10)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                                .onChange(of: searchText) { oldValue, newValue in
+                                    let digitsOnly = newValue.filter { $0.isNumber }
+                                    if digitsOnly != newValue { searchText = digitsOnly }
+                                    showResults = true
                                 }
-                                .pickerStyle(MenuPickerStyle())
-                                .onChange(of: selectedTeamIndex) { newIndex in
-                                    if let newIndex = newIndex {
-                                        selectedTeamNumber = String(viewModel.teams[newIndex].teamNumber)
+
+                                if viewModel.teams.isEmpty {
+                                    ProgressView("Loading teams...")
+                                }
+
+                                if showResults && !viewModel.teams.isEmpty {
+                                    if filteredTeams.isEmpty {
+                                        Text("No teams match")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        ScrollView {
+                                            LazyVStack(alignment: .leading, spacing: 0) {
+                                                ForEach(filteredTeams, id: \.self) { team in
+                                                    Button {
+                                                        selectedTeam = team
+                                                        searchText = String(team)
+                                                        showResults = false
+                                                        UIApplication.shared.endEditing()
+                                                    } label: {
+                                                        HStack {
+                                                            Text("\(team)")
+                                                            Spacer()
+                                                            if selectedTeam == team {
+                                                                Image(systemName: "checkmark")
+                                                                    .foregroundColor(.secondary)
+                                                            }
+                                                        }
+                                                        .padding(.vertical, 10)
+                                                        .padding(.horizontal, 12)
+                                                    }
+                                                    .buttonStyle(.plain)
+
+                                                    Divider()
+                                                }
+                                            }
+                                        }
+                                        .frame(maxHeight: 220)
+                                        .background(Color(.systemBackground))
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.gray.opacity(0.3))
+                                        )
                                     }
                                 }
                             }
-                        }
-                        .onAppear {
-                            print("View appeared!") // Debugging
-                            viewModel.fetchTeams()
-                        } */
-                        
-                            TextField("Team Number", text: $teamNumber)
+                            .onAppear {
+                                viewModel.fetchTeams()
+                            }
+                            
+                            /*TextField("Team Number", text: $teamNumber)
                                 .keyboardType(.numberPad)
                                 .padding()
                                 .background(Color.white.opacity(0.8))
                                 .cornerRadius(8)
-                                .foregroundColor(.darkGreenFont)
-
+                                .foregroundColor(.darkGreenFont)*/
+                            
                             TextField("Match Number", text: $matchNumber)
                                 .keyboardType(.numberPad)
                                 .padding()
                                 .background(Color.white.opacity(0.8))
                                 .cornerRadius(8)
                                 .foregroundColor(.darkGreenFont)
-                        }
-
-                        Section(header: Text("Alliance Color and Scouting").foregroundColor(.darkGreenFont)) {
-                            Picker("Alliance", selection: $allianceColor) {
-                                Text("Red").tag("Red")
-                                Text("Blue").tag("Blue")
-                            }
-                            .pickerStyle(SegmentedPickerStyle())
-                            .padding(.vertical, 8)
-                        }
-                        
-                        Section(header: Text("Auto").foregroundColor(.darkGreenFont)) {
-                            Toggle("Robot left starting line?", isOn: $leaveStartingLine)
-                                .foregroundColor(.darkGreenFont)
-                                .font(.headline)
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Auto coral scored in level 1 (trough):")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Auto Points", selection: $autoCoralL1) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
                             
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Auto coral scored in level 2:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Auto Points", selection: $autoCoralL2) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
+                            HStack(spacing: 0) {
+                                segment(title: "Red", color: .red, value: "Red")
+                                Divider()
+                                segment(title: "Blue", color: .blue, value: "Blue")
                             }
-                            
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Auto coral scored in level 3:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Auto Points", selection: $autoCoralL3) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Auto coral scored in level 4:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Auto Points", selection: $autoCoralL4) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Auto algae removed from reef:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Auto Points", selection: $autoAlgaeRemoved) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            
+                            .frame(height: 36)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.gray.opacity(0.35))
+                            )
                         }
                         
-                        Section(header: Text("Teleop").foregroundColor(.darkGreenFont)) {
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Teleop coral scored in level 1 (trough):")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Teleop Points", selection: $teleopCoralL1) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Teleop coral scored in level 2:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Teleop Points", selection: $teleopCoralL2) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Teleop coral scored in level 3:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Teleop Points", selection: $teleopCoralL3) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Teleop coral scored in level 4:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Teleop Points", selection: $teleopCoralL4) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Teleop algae removed from reef:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Teleop Points", selection: $teleopAlgaeRemoved) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Algae scored into net:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Teleop Points", selection: $algaeScoredNet) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Algae scored into processor:")
-                                        .font(.headline)
-                                        .foregroundColor(.darkGreenFont)
-                                        .padding(.trailing, 8)
-                                    Spacer()
-                                    Picker("Teleop Points", selection: $algaeScoredProcessor) {
-                                        ForEach(0..<31) { number in
-                                            Text("\(number)").tag(number)
-                                        }
-                                    }
-                                    .pickerStyle(WheelPickerStyle())
-                                    .frame(width: 100, height: 120)
-                                    .clipped()
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.darkGreenFont)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        }
-                        
-                        Section(header: Text("Endgame").foregroundColor(.darkGreenFont)) {
-                            Toggle("Robot is parked?", isOn: $isParked)
+                        Section(header: Text("Auto").font(.title3).foregroundColor(.darkGreenFont)) {
+                            Toggle("Scored any preload", isOn: $autoScorePreload)
                                 .foregroundColor(.darkGreenFont)
                                 .font(.headline)
-                            Toggle("Is robot successfully hanging from shallow cage?", isOn: $didShallowCage)
+                            Toggle("Scored any outpost fuel", isOn: $autoOutpost)
                                 .foregroundColor(.darkGreenFont)
                                 .font(.headline)
-                            Toggle("Is robot successfully hanging from deep cage?", isOn: $didDeepCage)
+                            Toggle("Scored any depot fuel", isOn: $autoDepot)
                                 .foregroundColor(.darkGreenFont)
                                 .font(.headline)
-                        }
-                        
-                        Section(header: Text("Performance").foregroundColor(.darkGreenFont)) {
-
-                            Toggle("Offense", isOn: $isOffense)
+                            Toggle("Picked up neutral zone fuel", isOn: $autoNeutral)
                                 .foregroundColor(.darkGreenFont)
                                 .font(.headline)
-                            Toggle("Defense", isOn: $isDefense)
+                            ExpandableToggle(
+                                title: "Cycling",
+                                descriptionProvider: robotDescription,
+                                isOn: $autoCycling
+                            )
+                            if (autoCycling) {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    HStack {
+                                        Text("Auto cycles:")
+                                            .font(.headline)
+                                            .foregroundColor(.darkGreenFont)
+                                            .padding(.trailing, 8)
+                                        Spacer()
+                                        Picker("Auto Cycles", selection: $autoCycles) {
+                                            ForEach(0..<11) { number in
+                                                Text("\(number)").tag(number)
+                                            }
+                                        }
+                                        .pickerStyle(WheelPickerStyle())
+                                        .frame(width: 100, height: 120)
+                                        .clipped()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            }
+                            Toggle("Climbed L1", isOn: $autoClimb)
                                 .foregroundColor(.darkGreenFont)
                                 .font(.headline)
-
                             VStack(alignment: .leading) {
-                                Text("Driving Score: \(Int(drivingScore))")
+                                Text("Climb location")
+                                    .font(.headline)
+                                    .foregroundColor(.darkGreenFont)
+                                
+                                Text("Depot side, outpost side, center, outside rung, inside rung, etc")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                
+                                TextEditor(text: $autoClimbLocation)
+                                    .padding()
+                                    .background(Color.white.opacity(0.8))
+                                    .cornerRadius(8)
+                                    .foregroundColor(.darkGreenFont)
+                                    .frame(height: 50)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.darkGreenFont, lineWidth: 1)
+                                    )
+                            }
+                            .padding(.vertical)
+                            VStack(alignment: .leading) {
+                                Text("Other")
+                                    .font(.headline)
+                                    .foregroundColor(.darkGreenFont)
+                                    .padding(.bottom, 4)
+                                
+                                TextEditor(text: $autoOther)
+                                    .padding()
+                                    .background(Color.white.opacity(0.8))
+                                    .cornerRadius(8)
+                                    .foregroundColor(.darkGreenFont)
+                                    .frame(height: 100)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.darkGreenFont, lineWidth: 1)
+                                    )
+                            }
+                        }
+                        
+                        Section(header: Text("Teleop").font(.title3).foregroundColor(.darkGreenFont)) {
+                            Toggle("Auto won?", isOn: $autoWon)
+                                .foregroundColor(.darkGreenFont)
+                                .font(.headline)
+                        }
+                        
+                        if(autoWon) {
+                            Section(header: Text("Period 1 - Inactive").font(.body).foregroundColor(.darkGreenFont)) {
+                                ExpandableToggle(
+                                    title: "Collecting",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive1Collecting
+                                )
+                                ExpandableToggle(
+                                    title: "Passing",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive1Passing
+                                )
+                                ExpandableToggle(
+                                    title: "Ferrying",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive1Ferrying
+                                )
+                                ExpandableToggle(
+                                    title: "Defense",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive1Defense
+                                )
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    TextEditor(text: $inactive1Other)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                            }
+                            Section(header: Text("Period 2 - Active").font(.body).foregroundColor(.darkGreenFont)) {
+                                ExpandableToggle(
+                                    title: "Shooting fuel in alliance zone",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active1Shooting
+                                )
+                                ExpandableToggle(
+                                    title: "Passing",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active1Passing
+                                )
+                                ExpandableToggle(
+                                    title: "Ferrying",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active1Ferrying
+                                )
+                                ExpandableToggle(
+                                    title: "Cycling",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active1Cycling
+                                )
+                                if (active1Cycling) {
+                                    VStack(alignment: .leading, spacing: 16) {
+                                        HStack {
+                                            Text("Number of cycles:")
+                                                .font(.headline)
+                                                .foregroundColor(.darkGreenFont)
+                                                .padding(.trailing, 8)
+                                            Spacer()
+                                            Picker("Number of cycles:", selection: $active1Cycles) {
+                                                ForEach(0..<31) { number in
+                                                    Text("\(number)").tag(number)
+                                                }
+                                            }
+                                            .pickerStyle(WheelPickerStyle())
+                                            .frame(width: 100, height: 120)
+                                            .clipped()
+                                            .background(Color.white.opacity(0.8))
+                                            .cornerRadius(8)
+                                            .foregroundColor(.darkGreenFont)
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    TextEditor(text: $active1Other)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                            }
+                            Section(header: Text("Period 3 - Inactive").font(.body).foregroundColor(.darkGreenFont)) {
+                                ExpandableToggle(
+                                    title: "Collecting",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive2Collecting
+                                )
+                                ExpandableToggle(
+                                    title: "Passing",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive2Passing
+                                )
+                                ExpandableToggle(
+                                    title: "Ferrying",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive2Ferrying
+                                )
+                                ExpandableToggle(
+                                    title: "Defense",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive2Defense
+                                )
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    TextEditor(text: $inactive2Other)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                            }
+                            Section(header: Text("Period 4 - Active").font(.body).foregroundColor(.darkGreenFont)) {
+                                ExpandableToggle(
+                                    title: "Shooting fuel in alliance zone",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active2Shooting
+                                )
+                                ExpandableToggle(
+                                    title: "Passing",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active2Passing
+                                )
+                                ExpandableToggle(
+                                    title: "Ferrying",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active2Ferrying
+                                )
+                                ExpandableToggle(
+                                    title: "Cycling",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active2Cycling
+                                )
+                                if (active2Cycling) {
+                                    VStack(alignment: .leading, spacing: 16) {
+                                        HStack {
+                                            Text("Number of cycles:")
+                                                .font(.headline)
+                                                .foregroundColor(.darkGreenFont)
+                                                .padding(.trailing, 8)
+                                            Spacer()
+                                            Picker("Number of cycles:", selection: $active2Cycles) {
+                                                ForEach(0..<31) { number in
+                                                    Text("\(number)").tag(number)
+                                                }
+                                            }
+                                            .pickerStyle(WheelPickerStyle())
+                                            .frame(width: 100, height: 120)
+                                            .clipped()
+                                            .background(Color.white.opacity(0.8))
+                                            .cornerRadius(8)
+                                            .foregroundColor(.darkGreenFont)
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    TextEditor(text: $active2Other)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                            }
+                        } else {
+                            Section(header: Text("Period 1 - Active").font(.body).foregroundColor(.darkGreenFont)) {
+                                ExpandableToggle(
+                                    title: "Shooting fuel in alliance zone",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active1Shooting
+                                )
+                                ExpandableToggle(
+                                    title: "Passing",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active1Passing
+                                )
+                                ExpandableToggle(
+                                    title: "Ferrying",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active1Ferrying
+                                )
+                                ExpandableToggle(
+                                    title: "Cycling",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active1Cycling
+                                )
+                                if (active1Cycling) {
+                                    VStack(alignment: .leading, spacing: 16) {
+                                        HStack {
+                                            Text("Number of cycles:")
+                                                .font(.headline)
+                                                .foregroundColor(.darkGreenFont)
+                                                .padding(.trailing, 8)
+                                            Spacer()
+                                            Picker("Number of cycles:", selection: $active1Cycles) {
+                                                ForEach(0..<31) { number in
+                                                    Text("\(number)").tag(number)
+                                                }
+                                            }
+                                            .pickerStyle(WheelPickerStyle())
+                                            .frame(width: 100, height: 120)
+                                            .clipped()
+                                            .background(Color.white.opacity(0.8))
+                                            .cornerRadius(8)
+                                            .foregroundColor(.darkGreenFont)
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    TextEditor(text: $active1Other)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                            }
+                            Section(header: Text("Period 2 - Inactive").font(.body).foregroundColor(.darkGreenFont)) {
+                                ExpandableToggle(
+                                    title: "Collecting",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive1Collecting
+                                )
+                                ExpandableToggle(
+                                    title: "Passing",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive1Passing
+                                )
+                                ExpandableToggle(
+                                    title: "Ferrying",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive1Ferrying
+                                )
+                                ExpandableToggle(
+                                    title: "Defense",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive1Defense
+                                )
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    TextEditor(text: $inactive1Other)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                            }
+                            Section(header: Text("Period 3 - Active").font(.body).foregroundColor(.darkGreenFont)) {
+                                ExpandableToggle(
+                                    title: "Shooting fuel in alliance zone",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active2Shooting
+                                )
+                                ExpandableToggle(
+                                    title: "Passing",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active2Passing
+                                )
+                                ExpandableToggle(
+                                    title: "Ferrying",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active2Ferrying
+                                )
+                                ExpandableToggle(
+                                    title: "Cycling",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $active2Cycling
+                                )
+                                if (active2Cycling) {
+                                    VStack(alignment: .leading, spacing: 16) {
+                                        HStack {
+                                            Text("Number of cycles:")
+                                                .font(.headline)
+                                                .foregroundColor(.darkGreenFont)
+                                                .padding(.trailing, 8)
+                                            Spacer()
+                                            Picker("Number of cycles:", selection: $active2Cycles) {
+                                                ForEach(0..<31) { number in
+                                                    Text("\(number)").tag(number)
+                                                }
+                                            }
+                                            .pickerStyle(WheelPickerStyle())
+                                            .frame(width: 100, height: 120)
+                                            .clipped()
+                                            .background(Color.white.opacity(0.8))
+                                            .cornerRadius(8)
+                                            .foregroundColor(.darkGreenFont)
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    TextEditor(text: $active2Other)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                            }
+                            Section(header: Text("Period 4 - Inactive").font(.body).foregroundColor(.darkGreenFont)) {
+                                ExpandableToggle(
+                                    title: "Collecting",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive2Collecting
+                                )
+                                ExpandableToggle(
+                                    title: "Passing",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive2Passing
+                                )
+                                ExpandableToggle(
+                                    title: "Ferrying",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive2Ferrying
+                                )
+                                ExpandableToggle(
+                                    title: "Defense",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $inactive2Defense
+                                )
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    TextEditor(text: $inactive2Other)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                            }
+                        }
+                        
+                        Section(header: Text("Endgame").font(.title3).foregroundColor(.darkGreenFont)) {
+                            ExpandableToggle(
+                                title: "Shooting fuel in alliance zone",
+                                descriptionProvider: robotDescription,
+                                isOn: $endgameShooting
+                            )
+                            ExpandableToggle(
+                                title: "Passing",
+                                descriptionProvider: robotDescription,
+                                isOn: $endgamePassing
+                            )
+                            ExpandableToggle(
+                                title: "Ferrying",
+                                descriptionProvider: robotDescription,
+                                isOn: $endgameFerrying
+                            )
+                            ExpandableToggle(
+                                title: "Defense",
+                                descriptionProvider: robotDescription,
+                                isOn: $endgameDefense
+                            )
+                            ExpandableToggle(
+                                title: "Cycling",
+                                descriptionProvider: robotDescription,
+                                isOn: $endgameCycling
+                            )
+                            if (endgameCycling) {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    HStack {
+                                        Text("Number of cycles:")
+                                            .font(.headline)
+                                            .foregroundColor(.darkGreenFont)
+                                            .padding(.trailing, 8)
+                                        Spacer()
+                                        Picker("Number of cycles:", selection: $endgameCycles) {
+                                            ForEach(0..<31) { number in
+                                                Text("\(number)").tag(number)
+                                            }
+                                        }
+                                        .pickerStyle(WheelPickerStyle())
+                                        .frame(width: 100, height: 120)
+                                        .clipped()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            }
+                            Toggle("Climbed L1", isOn: $climbL1)
+                                .foregroundColor(.darkGreenFont)
+                                .font(.headline)
+                            Toggle("Climbed L2", isOn: $climbL2)
+                                .foregroundColor(.darkGreenFont)
+                                .font(.headline)
+                            Toggle("Climbed L3", isOn: $climbL3)
+                                .foregroundColor(.darkGreenFont)
+                                .font(.headline)
+                            VStack(alignment: .leading) {
+                                Text("Climb location")
+                                    .font(.headline)
+                                    .foregroundColor(.darkGreenFont)
+                                
+                                Text("Depot side, outpost side, center, outside rung, inside rung, etc")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                
+                                TextEditor(text: $climbLocation)
+                                    .padding()
+                                    .background(Color.white.opacity(0.8))
+                                    .cornerRadius(8)
+                                    .foregroundColor(.darkGreenFont)
+                                    .frame(height: 50)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.darkGreenFont, lineWidth: 1)
+                                    )
+                            }
+                            .padding(.vertical)
+                            VStack(alignment: .leading) {
+                                Text("Other")
+                                    .font(.headline)
+                                    .foregroundColor(.darkGreenFont)
+                                    .padding(.bottom, 4)
+                                
+                                TextEditor(text: $endgameOther)
+                                    .padding()
+                                    .background(Color.white.opacity(0.8))
+                                    .cornerRadius(8)
+                                    .foregroundColor(.darkGreenFont)
+                                    .frame(height: 100)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.darkGreenFont, lineWidth: 1)
+                                    )
+                            }
+                            
+                        }
+                        
+                        if (inactive1Defense || inactive2Defense || endgameDefense) {
+                            Section(header: Text("Defense").foregroundColor(.darkGreenFont)) {
+                                Toggle("Collecting fuel from opponent alliance zone", isOn: $defenseCollectOppFuel)
+                                    .foregroundColor(.darkGreenFont)
+                                    .font(.headline)
+                                Toggle("Blocking opponent robots trench or bump", isOn: $defenseBlocking)
+                                    .foregroundColor(.darkGreenFont)
+                                    .font(.headline)
+                                Toggle("Hitting opponent robots to slow them down", isOn: $defenseHitting)
+                                    .foregroundColor(.darkGreenFont)
+                                    .font(.headline)
+                                Toggle("Pinning opponent robots", isOn: $defensePinning)
+                                    .foregroundColor(.darkGreenFont)
+                                    .font(.headline)
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    TextEditor(text: $defenseOther)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                            }
+                        }
+                        
+                        Section(header: Text("Performance").font(.title3).foregroundColor(.darkGreenFont)) {
+                            VStack(alignment: .leading) {
+                                Text("Driving score: \(Int(drivingScore))")
                                     .font(.headline)
                                     .foregroundColor(.darkGreenFont)
                                     .padding(.bottom, 4)
@@ -407,7 +848,82 @@ struct ScoutingFormView: View {
                                     .accentColor(.greenTheme2)
                                     .padding(.bottom, 4)
 
-                                Text(descriptionForScore(Int(drivingScore)))
+                                Text(descriptionDrivingScore(Int(drivingScore)))
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            VStack(alignment: .leading) {
+                                Text("Intake ability: \(Int(intakeAbility))")
+                                    .font(.headline)
+                                    .foregroundColor(.darkGreenFont)
+                                    .padding(.bottom, 4)
+
+                                Slider(value: $intakeAbility, in: 0...5, step: 1)
+                                    .accentColor(.greenTheme2)
+                                    .padding(.bottom, 4)
+
+                                Text(descriptionIntakeAbility(Int(intakeAbility)))
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            VStack(alignment: .leading) {
+                                Text("Hopper capacity: \(Int(hopperCapacity)) fuel")
+                                    .font(.headline)
+                                    .foregroundColor(.darkGreenFont)
+                                    .padding(.bottom, 4)
+
+                                Slider(value: $hopperCapacity, in: 0...50, step: 10)
+                                    .accentColor(.greenTheme2)
+                                    .padding(.bottom, 4)
+
+                                Text(descriptionHopperCapacity(Int(hopperCapacity)))
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            VStack(alignment: .leading) {
+                                Text("Shot accuracy: \(Int(shotAccuracy))%")
+                                    .font(.headline)
+                                    .foregroundColor(.darkGreenFont)
+                                    .padding(.bottom, 4)
+
+                                Slider(value: $shotAccuracy, in: 0...100, step: 10)
+                                    .accentColor(.greenTheme2)
+                                    .padding(.bottom, 4)
+
+                                Text(descriptionShotAccuracy(Int(shotAccuracy)))
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            VStack(alignment: .leading) {
+                                Text("Shooting location flexibility: \(Int(shootingLocationFlexibility))")
+                                    .font(.headline)
+                                    .foregroundColor(.darkGreenFont)
+                                    .padding(.bottom, 4)
+
+                                Slider(value: $shootingLocationFlexibility, in: 0...5, step: 1)
+                                    .accentColor(.greenTheme2)
+                                    .padding(.bottom, 4)
+
+                                Text(descriptionShootingLocationFelixbility(Int(shootingLocationFlexibility)))
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            VStack(alignment: .leading) {
+                                Text("Bump vs trench preference: \(Int(bumpVsTrench))")
+                                    .font(.headline)
+                                    .foregroundColor(.darkGreenFont)
+                                    .padding(.bottom, 4)
+
+                                Slider(value: $bumpVsTrench, in: 1...5, step: 1)
+                                    .accentColor(.greenTheme2)
+                                    .padding(.bottom, 4)
+
+                                Text(descriptionBumpVsTrench(Int(bumpVsTrench)))
                                     .font(.subheadline)
                                     .foregroundColor(.gray)
                             }
@@ -416,7 +932,10 @@ struct ScoutingFormView: View {
                                 Text("Comments")
                                     .font(.headline)
                                     .foregroundColor(.darkGreenFont)
-                                    .padding(.bottom, 4)
+
+                                Text("Driving, decision-making, defense, fouls, etc")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
 
                                 TextEditor(text: $comments)
                                     .padding()
@@ -467,8 +986,8 @@ struct ScoutingFormView: View {
     }
 
     func submitData() {
-        guard !teamNumber.isEmpty else {
-        // guard !selectedTeamNumber.isEmpty else {
+        // guard !teamNumber.isEmpty else {
+        guard !selectedTeamNumber.isEmpty else {
             alertMessage = "Team Number is required."
             showErrorAlert = true
             return
@@ -480,39 +999,83 @@ struct ScoutingFormView: View {
             return
         }
 
-        guard drivingScore > -1 else {
-            alertMessage = "Driving Score must be selected."
-            showErrorAlert = true
-            return
-        }
-
         isSubmitting = true
 
         var formData: [String: Any] = [
             "Username": username,
-            "Team Number": teamNumber,
-            // "Team Number": selectedTeamNumber,
-            "Match Number": matchNumber,
-            "Alliance": allianceColor,
-            "Left starting line": leaveStartingLine ? "Yes" : "No",
-            "Auto Coral L1": autoCoralL1,
-            "Auto Coral L2": autoCoralL2,
-            "Auto Coral L3": autoCoralL3,
-            "Auto Coral L4": autoCoralL4,
-            "Auto Algae Removed": autoAlgaeRemoved,
-            "Teleop Coral L1": teleopCoralL1,
-            "Teleop Coral L2": teleopCoralL2,
-            "Teleop Coral L3": teleopCoralL3,
-            "Teleop Coral L4": teleopCoralL4,
-            "Teleop Algae Removed": teleopAlgaeRemoved,
-            "Algae Scored Net": algaeScoredNet,
-            "Algae Scored Processor": algaeScoredProcessor,
-            "Robot parked": isParked ? "Yes" : "No",
-            "Shallow Cage": didShallowCage ? "Yes" : "No",
-            "Deep cage": didDeepCage ? "Yes" : "No",
-            "Offense": isOffense ? "Yes" : "No",
-            "Defense": isDefense ? "Yes" : "No",
-            "Driving Score": Int(drivingScore)
+            // "Team number": teamNumber,
+            "Team number": selectedTeamNumber,
+            "Match number": matchNumber,
+            "Alliance color": allianceColor,
+
+            // Auto
+            "Auto score preload": autoScorePreload,
+            "Auto outpost": autoOutpost,
+            "Auto depot": autoDepot,
+            "Auto neutral": autoNeutral,
+            "Auto cycling": autoCycling,
+            "Auto cycles": autoCycles,
+            "Auto climb": autoClimb,
+            "Auto climb location": autoClimbLocation,
+            "Auto other": autoOther,
+            "Auto won": autoWon,
+
+            // Teleop
+            "IA1 collecting": inactive1Collecting,
+            "IA1 passing": inactive1Passing,
+            "IA1 ferrying": inactive1Ferrying,
+            "IA1 defense": inactive1Defense,
+            "IA1 other": inactive1Other,
+            
+            "A1 shooting": active1Shooting,
+            "A1 passing": active1Passing,
+            "A1 ferrying": active1Ferrying,
+            "A1 cycling": active1Cycling,
+            "A1 cycles": active1Cycles,
+            "A1 other": active1Other,
+            
+            "IA2 collecting": inactive2Collecting,
+            "IA2 passing": inactive2Passing,
+            "IA2 ferrying": inactive2Ferrying,
+            "IA2 defense": inactive2Defense,
+            "IA2 other": inactive2Other,
+            
+            "A2 shooting": active2Shooting,
+            "A2 passing": active2Passing,
+            "A2 ferrying": active2Ferrying,
+            "A2 cycling": active2Cycling,
+            "A2 cycles": active2Cycles,
+            "A2 other": active2Other,
+
+            // Endgame
+            "Endgame shooting": endgameShooting,
+            "Endgame passing": endgamePassing,
+            "Endgame ferrying": endgameFerrying,
+            "Endgame defense": endgameDefense,
+            "Endgame cycling": endgameCycling,
+            "Endgame cycles": endgameCycles,
+            "Climb L1": climbL1,
+            "Climb L2": climbL2,
+            "Climb L3": climbL3,
+            "Climbing location": climbLocation,
+            "Endgame other": endgameOther,
+
+            // Defense
+            "Defense": inactive1Defense || inactive2Defense,
+            "Defense collect opp fuel": defenseCollectOppFuel,
+            "Defense blocking": defenseBlocking,
+            "Defenese hitting": defenseHitting,
+            "Defense pinning": defensePinning,
+            "Defense other": defenseOther,
+            
+            // Comments
+            "Driving score": Int(drivingScore),
+            "Intake ability": Int(intakeAbility),
+            "Hopper capacity": Int(hopperCapacity),
+            "Shot accuracy": Int(shotAccuracy),
+            "Shooting location flexibility": Int(shootingLocationFlexibility),
+            "Bump vs trench": Int(bumpVsTrench),
+            "Comments": comments
         ]
 
         if !comments.isEmpty {
@@ -528,40 +1091,84 @@ struct ScoutingFormView: View {
     }
 
     func clearFields() {
-        teamNumber = ""
-        // selectedTeamNumber = ""
+        // teamNumber = ""
+        selectedTeamNumber = ""
         matchNumber = ""
-        //Auto
-        leaveStartingLine = false
-        autoCoralL1 = 0
-        autoCoralL2 = 0
-        autoCoralL3 = 0
-        autoCoralL4 = 0
-        autoAlgaeRemoved = 0
-        
-        teleopCoralL1 = 0
-        teleopCoralL2 = 0
-        teleopCoralL3 = 0
-        teleopCoralL4 = 0
-        teleopAlgaeRemoved = 0
-        algaeScoredNet = 0
-        algaeScoredProcessor = 0
-        
-        isParked = false
-        didShallowCage = false
-        didDeepCage = false
-
-        
-        comments = ""
-        isOffense = false
-        isDefense = false
-        drivingScore = 0.0
         allianceColor = "Red"
+        isSubmitting = false
+
+        // Auto
+        autoScorePreload = false
+        autoOutpost = false
+        autoDepot = false
+        autoNeutral = false
+        autoCycling = false
+        autoCycles = 0
+        autoClimb = false
+        autoClimbLocation = ""
+        autoOther = ""
+        autoWon = true
+
+        // Teleop
+        inactive1Collecting = false
+        inactive1Passing = false
+        inactive1Ferrying = false
+        inactive1Defense = false
+        inactive1Other = ""
+        
+        active1Shooting = false
+        active1Passing = false
+        active1Ferrying = false
+        active1Cycling = false
+        active1Cycles = 0
+        active1Other = ""
+        
+        inactive2Collecting = false
+        inactive2Passing = false
+        inactive2Ferrying = false
+        inactive2Defense = false
+        inactive2Other = ""
+        
+        active2Shooting = false
+        active2Passing = false
+        active2Ferrying = false
+        active2Cycling = false
+        active2Cycles = 0
+        active2Other = ""
+
+        // Endgame
+        endgameShooting = false
+        endgamePassing = false
+        endgameFerrying = false
+        endgameDefense = false
+        endgameCycling = false
+        endgameCycles = 0
+        climbL1 = false
+        climbL2 = false
+        climbL3 = false
+        climbLocation = ""
+        endgameOther = ""
+
+        // Defense
+        defenseCollectOppFuel = false
+        defenseBlocking = false
+        defenseHitting = false
+        defensePinning = false
+        defenseOther = ""
+        
+        // Comments
+        drivingScore = 0.0
+        intakeAbility = 0.0
+        hopperCapacity = 0.0
+        shotAccuracy = 0.0
+        shootingLocationFlexibility = 0.0
+        bumpVsTrench = 0.0
+        comments = ""
     }
     
-    func descriptionForScore(_ score: Int) -> String {
+    func descriptionDrivingScore(_ score: Int) -> String {
         switch score {
-        case 0: return "0 = No driving at all"
+        case 0: return "0 = No driving"
         case 1: return "1 = Poor driving performance"
         case 2: return "2 = Below average driving"
         case 3: return "3 = Somewhat effective driving"
@@ -575,5 +1182,138 @@ struct ScoutingFormView: View {
         default: return "Score out of range"
         }
     }
+    
+    func descriptionIntakeAbility(_ score: Int) -> String {
+        switch score {
+        case 0: return "0 = No intaking"
+        case 1: return "1 = Intakes almost none of fuel touched"
+        case 2: return "2 = Intakes half of fuel touched"
+        case 3: return "3 = Intakes most of fuel touched"
+        case 4: return "4 = Intakes almost all of fuel touched"
+        case 5: return "5 = Intakes all fuel touched"
+        default: return "Score out of range"
+        }
+    }
+    
+    func descriptionHopperCapacity (_ score: Int) -> String {
+        switch score {
+        case 0: return "0 = No hopper"
+        case 10: return "10 = Hopper holds ~10 fuel"
+        case 20: return "20 = Hopper holds ~20 fuel"
+        case 30: return "30 = Hopper holds ~30 fuel"
+        case 40: return "40 = Hopper holds ~40 fuel"
+        case 50: return "50 = Hopper holds ~50 fuel"
+        default: return "Score out of range"
+        }
+    }
+    
+    func descriptionShotAccuracy(_ score: Int) -> String {
+        switch score {
+        case 0: return "0 = No shooting"
+        case 10: return "10 = Made ~10% of shots"
+        case 20: return "20 = Made ~20% of shots"
+        case 30: return "30 = Made ~30% of shots"
+        case 40: return "40 = Made ~40% of shots"
+        case 50: return "50 = Made ~50% of shots"
+        case 60: return "60 = Made ~60% of shots"
+        case 70: return "70 = Made ~70% of shots"
+        case 80: return "80 = Made ~80% of shots"
+        case 90: return "90 = Made ~90% of shots"
+        case 100: return "100 = Made all shots"
+        default: return "Score out of range"
+        }
+    }
+    
+    func descriptionShootingLocationFelixbility (_ score: Int) -> String {
+        switch score {
+        case 0: return "0 = No shooting"
+        case 1: return "1 = Only shoots from one place"
+        case 2: return "2 = Only shoots from one distance from hub"
+        case 3: return "3 = Shoots stationary from around half of alliance zone"
+        case 4: return "4 = Shoots stationary from anywhere in alliance zone"
+        case 5: return "5 = Shoot on the move"
+        default: return "Score out of range"
+        }
+    }
+    
+    func descriptionBumpVsTrench (_ score: Int) -> String {
+        switch score {
+        case 1: return "1 = Only goes over bump"
+        case 2: return "2 = Prefers bump but uses both"
+        case 3: return "3 = No preference"
+        case 4: return "4 = Prefers trench but uses both"
+        case 5: return "5 = Only goes under trench"
+        default: return "Score out of range"
+        }
+    }
+    
+    func segment(title: String, color: Color, value: String) -> some View {
+        Button {
+            allianceColor = value
+        } label: {
+            Text(title)
+                .font(.headline)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(allianceColor == value ? color : Color.clear)
+                .foregroundColor(Color(.systemGray5))
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+    }
+    
+    struct ExpandableToggle: View {
+        let title: String
+        let descriptionProvider: (String) -> String
+        @Binding var isOn: Bool
+        
+        @State private var expanded = false
 
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Button {
+                        withAnimation {
+                            expanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(title)
+                                .font(.headline)
+                                .foregroundColor(.darkGreenFont)
+
+                            Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Toggle("", isOn: $isOn)
+                        .labelsHidden()
+                }
+
+                if expanded {
+                    Text(descriptionProvider(title))
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+    
+    func robotDescription (_ score: String) -> String {
+        switch score {
+        case "Collecting": return "Filling up hopper with fuel from neutral or opponent alliance zone."
+        case "Passing": return "Intaking fuel and shooting it into their alliance zone."
+        case "Ferrying": return "Intaking fuel, driving to alliance zone, outtaking fuel in their alliance zone."
+        case "Defense": return "Collecting fuel from opponent alliance zone, blocking opponents' trench or bump, hitting opponent robots to slow them down, pinning opponent robots, etc."
+        case "Shooting fuel in alliance zone": return "Intaking fuel from alliance zone and shooting it into hub."
+        case "Cycling": return "Intaking fuel from neutral zone, driving to alliance zone, shooting into hub, drive back to neutral zone."
+        default: return "No description"
+        }
+    }
 }
