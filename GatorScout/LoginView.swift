@@ -6,17 +6,17 @@ struct LoginView: View {
     @State private var showErrorAlert = false
     @State private var alertMessage = ""
     @State private var isLoggedIn = false
-    @State private var isPhoneMode = true
+    @State private var standOrPit = "Stand"
 
     let correctPassword = "gogators"
     
     var body: some View {
         Group {
             if isLoggedIn {
-                if isPhoneMode {
-                    ScoutingFormView(username: username)
+                if (standOrPit == "Stand") {
+                    ScoutingFormView(username: username, isLoggedIn: $isLoggedIn)
                 } else {
-                    iPadScoutingFormView(username: username)
+                    PitscoutingFormView(username: username, isLoggedIn: $isLoggedIn)
                 }
             } else {
                 ZStack {
@@ -41,9 +41,12 @@ struct LoginView: View {
                             .cornerRadius(8)
                             .foregroundColor(.darkGreenFont)
                         
-                        Toggle("Use Phone Mode", isOn: $isPhoneMode)
-                            .padding()
-                            .foregroundColor(.darkGreenFont)
+                        Picker("Stand or pit scouting", selection: $standOrPit) {
+                            Text("Stand scouting").tag("Stand")
+                            Text("Pitscouting").tag("Pit")
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .padding(.vertical, 8)
                         
                         Button(action: validateLogin) {
                             Text("Login")
