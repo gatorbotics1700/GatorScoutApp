@@ -15,49 +15,63 @@ class FormSubmissionManager: ObservableObject {
     private init() {
         loadSavedForms()
     }
-
-    func submitData(_ formData: [String: Any]) {
-        if NetworkMonitor.shared.isConnected {
-            sendDataToServer(formData)
-        } else {
-            saveFormDataLocally(formData)
+    
+    func submitData(_ formData: [String: Any], completion: @escaping (Bool) -> Void) {
+        sendDataToServer(formData) { success in
+            if success {
+                completion(true)
+            } else {
+                self.saveFormDataLocally(formData)
+                completion(false)
+            }
         }
     }
 
-    private func sendDataToServer(_ formData: [String: Any]) {
-        let endpointURL = URL(string: "https://script.google.com/macros/s/AKfycbxlmhbj1LccTEBWWCv81rgKlEDAIO-2zyZTlNJUiMBfe6S49UQQwEHpdkoo2ZCNrtK-Nw/exec")!
+    private func sendDataToServer(_ formData: [String: Any], completion: @escaping (Bool) -> Void) {
+        let endpointURL = URL(string: "https://script.google.com/macros/s/AKfycbwlwYVU2jox7s7jD64BEYnLYy7NQy9YgXHIE880h60OhvcVQSFakwZ-yVUSs7YckyAR/exec")!
         var request = URLRequest(url: endpointURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         do {
-            let jsonData = try JSONSerialization.data(withJSONObject: formData, options: [])
-            request.httpBody = jsonData
+            request.httpBody = try JSONSerialization.data(withJSONObject: formData, options: [])
         } catch {
-            print("Error encoding data.")
+            print("Error encoding data: \(error)")
+            completion(false)
             return
         }
 
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                    print("Data submitted successfully!")
-                } else {
-                    print("Submission failed, saving locally.")
-                    self.saveFormDataLocally(formData)
+                if let error = error {
+                    print("Network error:", error.localizedDescription)
+                    completion(false)
+                    return
                 }
+
+                guard let http = response as? HTTPURLResponse else {
+                    print("No HTTP response")
+                    completion(false)
+                    return
+                }
+
+                // Helpful debug:
+                if let data = data, let body = String(data: data, encoding: .utf8) {
+                    print("Server status:", http.statusCode, "body:", body)
+                } else {
+                    print("Server status:", http.statusCode)
+                }
+
+                completion(http.statusCode == 200)
             }
-        }
-        task.resume()
+        }.resume()
     }
 
     private func saveFormDataLocally(_ formData: [String: Any]) {
-        if var existingForms = UserDefaults.standard.array(forKey: "savedForms") as? [[String: Any]] {
-            existingForms.append(formData)
-            UserDefaults.standard.set(existingForms, forKey: "savedForms")
-        } else {
-            UserDefaults.standard.set([formData], forKey: "savedForms")
-        }
+        loadSavedForms()
+        savedForms.append(formData)
+        UserDefaults.standard.set(savedForms, forKey: "savedForms")
+        print("Saved locally. Queue size: \(savedForms.count)")
     }
 
     private func loadSavedForms() {
@@ -70,11 +84,39 @@ class FormSubmissionManager: ObservableObject {
         loadSavedForms()
         guard NetworkMonitor.shared.isConnected else { return }
 
-        for (index, formData) in savedForms.enumerated().reversed() {
-            sendDataToServer(formData)
-            savedForms.remove(at: index)
+        guard !savedForms.isEmpty else {
+            print("No saved forms to resubmit.")
+            return
         }
 
-        UserDefaults.standard.set(savedForms, forKey: "savedForms")
+        print("Attempting to resubmit \(savedForms.count) saved forms...")
+        resubmitNext()
     }
+
+    private func resubmitNext() {
+        guard NetworkMonitor.shared.isConnected else {
+            print("Went offline again. Stopping resubmission.")
+            return
+        }
+        
+        loadSavedForms()
+        guard !savedForms.isEmpty else {
+            print("All saved forms resubmitted!")
+            return
+        }
+
+        let formData = savedForms.first!
+
+        sendDataToServer(formData) { success in
+            if success {
+                self.savedForms.removeFirst()
+                UserDefaults.standard.set(self.savedForms, forKey: "savedForms")
+                print("Resubmitted one form. Remaining: \(self.savedForms.count)")
+                self.resubmitNext()
+            } else {
+                print("Resubmit failed. Keeping forms saved locally.")
+            }
+        }
+    }
+
 }

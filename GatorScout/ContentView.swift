@@ -14,7 +14,6 @@ struct ScoutingFormView: View {
     @State private var showResults = false
     @State private var matchNumber = ""
     @State private var allianceColor = "Red"
-    @State private var isSubmitting = false
 
     // Auto
     @State private var autoScorePreload = false
@@ -84,11 +83,19 @@ struct ScoutingFormView: View {
     @State private var bumpVsTrench: Double = 3.0
     @State private var comments = ""
 
-    @State private var showErrorAlert = false
-    @State private var showSuccessAlert = false
-    @State private var alertMessage = ""
-    
-    @State private var savedForms: [[String: Any]] = []
+    @State private var isSubmitting = false
+    enum ActiveAlert: Identifiable {
+        case error(String)
+        case success(String)
+
+        var id: String {
+            switch self {
+            case .error(let msg): return "error-\(msg)"
+            case .success(let msg): return "success-\(msg)"
+            }
+        }
+    }
+    @State private var activeAlert: ActiveAlert? = nil
 
     private var filteredTeams: [Int] {
         let allTeams = viewModel.teams.map { $0.teamNumber }.sorted()
@@ -140,6 +147,7 @@ struct ScoutingFormView: View {
                                     .onChange(of: searchText) { oldValue, newValue in
                                         let digitsOnly = newValue.filter { $0.isNumber }
                                         if digitsOnly != newValue { searchText = digitsOnly }
+                                        selectedTeamNumber = digitsOnly
                                         showResults = true
                                     }
                                     
@@ -159,6 +167,7 @@ struct ScoutingFormView: View {
                                                         Button {
                                                             selectedTeam = team
                                                             searchText = String(team)
+                                                            selectedTeamNumber = String(team)
                                                             showResults = false
                                                             UIApplication.shared.endEditing()
                                                         } label: {
@@ -968,17 +977,21 @@ struct ScoutingFormView: View {
                             
                             Section {
                                 Button(action: submitData) {
-                                    if isSubmitting {
-                                        ProgressView()
-                                    } else {
-                                        Text("Submit")
+                                    ZStack {
+                                        Text(isSubmitting ? "Submitting..." : "Submit")
                                             .foregroundColor(.white)
                                             .padding()
                                             .frame(maxWidth: .infinity)
                                             .background(Color.greenTheme2)
                                             .cornerRadius(10)
+                                            .opacity(isSubmitting ? 0.7 : 1)
+
+                                        if isSubmitting {
+                                            ProgressView()
+                                        }
                                     }
                                 }
+                                .disabled(isSubmitting)
                             }
                         }
                         .scrollDismissesKeyboard(.interactively)
@@ -988,31 +1001,37 @@ struct ScoutingFormView: View {
                     .padding()
                 }
                 //.navigationBarTitle("FRC Scouting", displayMode: .inline)
-                .alert(isPresented: $showErrorAlert) {
-                    Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-                }
-                .alert(isPresented: $showSuccessAlert) {
-                    Alert(
-                        title: Text("Success"),
-                        message: Text(alertMessage),
-                        dismissButton: .default(Text("Log Another Match"), action: clearFields)
-                    )
+                .alert(item: $activeAlert) { alert in
+                    switch alert {
+                    case .error(let msg):
+                        return Alert(
+                            title: Text("Error"),
+                            message: Text(msg),
+                            dismissButton: .default(Text("OK"))
+                        )
+                    case .success(let msg):
+                        return Alert(
+                            title: Text("Success"),
+                            message: Text(msg),
+                            dismissButton: .default(Text("Log Another Match"), action: clearFields)
+                        )
+                    }
                 }
             }
         }
     }
 
     func submitData() {
+        selectedTeamNumber = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         // guard !teamNumber.isEmpty else {
         guard !selectedTeamNumber.isEmpty else {
-            alertMessage = "Team Number is required."
-            showErrorAlert = true
+            activeAlert = .error("Team Number is required.")
             return
         }
 
         guard !matchNumber.isEmpty else {
-            alertMessage = "Match Number is required."
-            showErrorAlert = true
+            activeAlert = .error("Match Number is required.")
             return
         }
 
@@ -1094,22 +1113,24 @@ struct ScoutingFormView: View {
             "Bump vs trench": Int(bumpVsTrench),
             "Comments": comments
         ]
-
-        if !comments.isEmpty {
-            formData["Comments"] = comments
+        
+        FormSubmissionManager.shared.submitData(formData) { success in
+            isSubmitting = false
+            if success {
+                FormSubmissionManager.shared.resubmitSavedForms()
+                activeAlert = .success("Submitted successfully!")
+            } else {
+                activeAlert = .success("Saved locally. Will retry when online.")
+            }
         }
-
-        // Call FormSubmissionManager to handle online/offline submission
-        FormSubmissionManager.shared.submitData(formData)
-
-        isSubmitting = false
-        alertMessage = "Data queued for submission."
-        showSuccessAlert = true
     }
 
     func clearFields() {
         // teamNumber = ""
+        searchText = ""
         selectedTeamNumber = ""
+        selectedTeam = nil
+        showResults = false
         matchNumber = ""
         allianceColor = "Red"
         isSubmitting = false
@@ -1179,7 +1200,7 @@ struct ScoutingFormView: View {
         hopperCapacity = 0.0
         shotAccuracy = 0.0
         shootingLocationFlexibility = 0.0
-        bumpVsTrench = 0.0
+        bumpVsTrench = 3.0
         comments = ""
     }
     

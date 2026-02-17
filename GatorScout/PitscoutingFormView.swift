@@ -5,7 +5,7 @@
 //  Created by Emma Li on 2/13/26.
 //
 
-import SwiftUI
+/*import SwiftUI
 import Foundation
 
 struct PitscoutingFormView: View {
@@ -224,3 +224,4 @@ struct PitscoutingFormView: View {
         comments = ""
     }
 }
+*/

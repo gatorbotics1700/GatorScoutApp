@@ -8,9 +8,7 @@ struct GatorScoutApp: App {
         WindowGroup {
             LoginView()
             .preferredColorScheme(.light)
-            .onAppear {
-                _ = NetworkMonitor.shared // Ensure it's initialized
-            }
+            .environmentObject(networkMonitor)
         }
     }
 }
