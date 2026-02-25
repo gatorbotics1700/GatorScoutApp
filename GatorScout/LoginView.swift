@@ -16,8 +16,7 @@ struct LoginView: View {
                 if (standOrPit == "Stand") {
                     ScoutingFormView(username: username, isLoggedIn: $isLoggedIn)
                 } else {
-                    //PitscoutingFormView(username: username, isLoggedIn: $isLoggedIn)
-                    ScoutingFormView(username: username, isLoggedIn: $isLoggedIn)
+                    PitscoutingFormView(username: username, isLoggedIn: $isLoggedIn)
                 }
             } else {
                 ZStack {

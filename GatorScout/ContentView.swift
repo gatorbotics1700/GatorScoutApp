@@ -1038,6 +1038,7 @@ struct ScoutingFormView: View {
         isSubmitting = true
 
         var formData: [String: Any] = [
+            "formType": "stand",
             "Username": username,
             // "Team number": teamNumber,
             "Team number": selectedTeamNumber,

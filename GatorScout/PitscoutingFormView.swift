@@ -5,30 +5,45 @@
 //  Created by Emma Li on 2/13/26.
 //
 
-/*import SwiftUI
+import SwiftUI
 import Foundation
 
 struct PitscoutingFormView: View {
     let username: String
     @Binding var isLoggedIn: Bool
-    
-    //Team information
+
+    // Match information
     // @State private var teamNumber = ""
     @StateObject private var viewModel = TeamsViewModel()
     @State private var searchText = ""
     @State private var selectedTeamNumber: String = ""
     @State private var selectedTeam: Int? = nil
     @State private var showResults = false
-    @State private var isSubmitting = false
-    
     @State private var comments = ""
-    
-    @State private var showErrorAlert = false
-    @State private var showSuccessAlert = false
-    @State private var alertMessage = ""
-    
-    @State private var savedForms: [[String: Any]] = []
-    
+
+    @State private var isSubmitting = false
+    enum ActiveAlert: Identifiable {
+        case error(String)
+        case success(String)
+
+        var id: String {
+            switch self {
+            case .error(let msg): return "error-\(msg)"
+            case .success(let msg): return "success-\(msg)"
+            }
+        }
+    }
+    @State private var activeAlert: ActiveAlert? = nil
+
+    private var filteredTeams: [Int] {
+        let allTeams = viewModel.teams.map { $0.teamNumber }.sorted()
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !trimmed.isEmpty else { return allTeams }
+        
+        return allTeams.filter { String($0).hasPrefix(trimmed) }
+    }
+        
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -49,27 +64,14 @@ struct PitscoutingFormView: View {
             .padding(.vertical, 6)
             .background(Color.greenTheme1)
             
-            var filteredTeams: [Int] {
-                let allTeams = viewModel.teams.map { $0.teamNumber }.sorted()
-                let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                guard !trimmed.isEmpty else { return allTeams }
-                
-                return allTeams.filter { String($0).hasPrefix(trimmed) }
-            }
-            
             NavigationView {
                 
                 ZStack {
-                    Color.greenTheme1.edgesIgnoringSafeArea(.all)
-                        .edgesIgnoringSafeArea(.all)
-                        .onTapGesture {
-                            UIApplication.shared.endEditing()
-                        }
+                    Color.greenTheme1.ignoresSafeArea()
                     
                     VStack {
                         Form {
-                            Section(header: Text("Pit Scouting").font(.title3).foregroundColor(.darkGreenFont)) {
+                            Section(header: Text("Match Information").font(.title3).foregroundColor(.darkGreenFont)) {
                                 VStack(alignment: .leading, spacing: 8) {
                                     
                                     TextField("Type team number", text: $searchText, onEditingChanged: { _ in
@@ -83,6 +85,7 @@ struct PitscoutingFormView: View {
                                     .onChange(of: searchText) { oldValue, newValue in
                                         let digitsOnly = newValue.filter { $0.isNumber }
                                         if digitsOnly != newValue { searchText = digitsOnly }
+                                        selectedTeamNumber = digitsOnly
                                         showResults = true
                                     }
                                     
@@ -102,6 +105,7 @@ struct PitscoutingFormView: View {
                                                         Button {
                                                             selectedTeam = team
                                                             searchText = String(team)
+                                                            selectedTeamNumber = String(team)
                                                             showResults = false
                                                             UIApplication.shared.endEditing()
                                                         } label: {
@@ -135,18 +139,27 @@ struct PitscoutingFormView: View {
                                 .onAppear {
                                     viewModel.fetchTeams()
                                 }
+                                
+                                /*TextField("Team Number", text: $teamNumber)
+                                 .keyboardType(.numberPad)
+                                 .padding()
+                                 .background(Color.white.opacity(0.8))
+                                 .cornerRadius(8)
+                                 .foregroundColor(.darkGreenFont)*/
+                            }
+                            
+                            Section(header: Text("Comments").font(.title3).foregroundColor(.darkGreenFont)) {
                                 VStack(alignment: .leading) {
                                     Text("Comments")
                                         .font(.headline)
                                         .foregroundColor(.darkGreenFont)
-                                        .padding(.bottom, 4)
                                     
                                     TextEditor(text: $comments)
                                         .padding()
                                         .background(Color.white.opacity(0.8))
                                         .cornerRadius(8)
                                         .foregroundColor(.darkGreenFont)
-                                        .frame(height: 100)
+                                        .frame(height: 150)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 8)
                                                 .stroke(Color.darkGreenFont, lineWidth: 1)
@@ -157,71 +170,130 @@ struct PitscoutingFormView: View {
                             
                             Section {
                                 Button(action: submitData) {
-                                    if isSubmitting {
-                                        ProgressView()
-                                    } else {
-                                        Text("Submit")
+                                    ZStack {
+                                        Text(isSubmitting ? "Submitting..." : "Submit")
                                             .foregroundColor(.white)
                                             .padding()
                                             .frame(maxWidth: .infinity)
                                             .background(Color.greenTheme2)
                                             .cornerRadius(10)
+                                            .opacity(isSubmitting ? 0.7 : 1)
+
+                                        if isSubmitting {
+                                            ProgressView()
+                                        }
                                     }
                                 }
+                                .disabled(isSubmitting)
                             }
                         }
+                        .scrollDismissesKeyboard(.interactively)
                         .scrollContentBackground(.hidden)
                         .background(Color.greenTheme1)
                     }
                     .padding()
                 }
                 //.navigationBarTitle("FRC Scouting", displayMode: .inline)
-                .alert(isPresented: $showErrorAlert) {
-                    Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-                }
-                .alert(isPresented: $showSuccessAlert) {
-                    Alert(
-                        title: Text("Success"),
-                        message: Text(alertMessage),
-                        dismissButton: .default(Text("Log Another Match"), action: clearFields)
-                    )
+                .alert(item: $activeAlert) { alert in
+                    switch alert {
+                    case .error(let msg):
+                        return Alert(
+                            title: Text("Error"),
+                            message: Text(msg),
+                            dismissButton: .default(Text("OK"))
+                        )
+                    case .success(let msg):
+                        return Alert(
+                            title: Text("Success"),
+                            message: Text(msg),
+                            dismissButton: .default(Text("Log Another Team"), action: clearFields)
+                        )
+                    }
                 }
             }
         }
     }
+
     func submitData() {
+        selectedTeamNumber = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         // guard !teamNumber.isEmpty else {
         guard !selectedTeamNumber.isEmpty else {
-            alertMessage = "Team Number is required."
-            showErrorAlert = true
+            activeAlert = .error("Team Number is required.")
             return
         }
 
         isSubmitting = true
 
         var formData: [String: Any] = [
+            "formType": "pit",
             "Username": username,
             // "Team number": teamNumber,
             "Team number": selectedTeamNumber,
             "Comments": comments
         ]
-
-        if !comments.isEmpty {
-            formData["Comments"] = comments
+        
+        FormSubmissionManager.shared.submitData(formData) { success in
+            isSubmitting = false
+            if success {
+                FormSubmissionManager.shared.resubmitSavedForms()
+                activeAlert = .success("Submitted successfully!")
+            } else {
+                activeAlert = .success("Saved locally. Will retry when online.")
+            }
         }
-
-        // Call FormSubmissionManager to handle online/offline submission
-        FormSubmissionManager.shared.submitData(formData)
-
-        isSubmitting = false
-        alertMessage = "Data queued for submission."
-        showSuccessAlert = true
     }
 
     func clearFields() {
         // teamNumber = ""
+        searchText = ""
         selectedTeamNumber = ""
+        selectedTeam = nil
+        showResults = false
         comments = ""
     }
+    
+    struct ExpandableToggle: View {
+        let title: String
+        let descriptionProvider: (String) -> String
+        @Binding var isOn: Bool
+        
+        @State private var expanded = false
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Button {
+                        withAnimation {
+                            expanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(title)
+                                .font(.headline)
+                                .foregroundColor(.darkGreenFont)
+
+                            Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Toggle("", isOn: $isOn)
+                        .labelsHidden()
+                }
+
+                if expanded {
+                    Text(descriptionProvider(title))
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
 }
-*/
