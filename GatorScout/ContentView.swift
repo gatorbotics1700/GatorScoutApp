@@ -20,6 +20,8 @@ struct ScoutingFormView: View {
     @State private var autoOutpost = false
     @State private var autoDepot = false
     @State private var autoNeutral = false
+    @State private var autoPassing = false
+    @State private var autoHerding = false
     @State private var autoCycling = false
     @State private var autoCycles = 0
     @State private var autoClimb = false
@@ -30,26 +32,26 @@ struct ScoutingFormView: View {
     // Teleop
     @State private var inactive1Collecting = false
     @State private var inactive1Passing = false
-    @State private var inactive1Ferrying = false
+    @State private var inactive1Herding = false
     @State private var inactive1Defense = false
     @State private var inactive1Other = ""
     
     @State private var active1Shooting = false
     @State private var active1Passing = false
-    @State private var active1Ferrying = false
+    @State private var active1Herding = false
     @State private var active1Cycling = false
     @State private var active1Cycles = 0
     @State private var active1Other = ""
     
     @State private var inactive2Collecting = false
     @State private var inactive2Passing = false
-    @State private var inactive2Ferrying = false
+    @State private var inactive2Herding = false
     @State private var inactive2Defense = false
     @State private var inactive2Other = ""
     
     @State private var active2Shooting = false
     @State private var active2Passing = false
-    @State private var active2Ferrying = false
+    @State private var active2Herding = false
     @State private var active2Cycling = false
     @State private var active2Cycles = 0
     @State private var active2Other = ""
@@ -57,13 +59,11 @@ struct ScoutingFormView: View {
     // Endgame
     @State private var endgameShooting = false
     @State private var endgamePassing = false
-    @State private var endgameFerrying = false
+    @State private var endgameHerding = false
     @State private var endgameDefense = false
     @State private var endgameCycling = false
     @State private var endgameCycles = 0
-    @State private var climbL1 = false
-    @State private var climbL2 = false
-    @State private var climbL3 = false
+    @State private var climb = "None"
     @State private var climbLocation = ""
     @State private var endgameOther = ""
 
@@ -77,7 +77,7 @@ struct ScoutingFormView: View {
     // Comments
     @State private var drivingScore: Double = 0.0
     @State private var intakeAbility: Double = 0.0
-    @State private var hopperCapacity: Double = 0.0
+    @State private var hopperCapacity = "None"
     @State private var shotAccuracy: Double = 0.0
     @State private var shootingLocationFlexibility: Double = 0.0
     @State private var bumpVsTrench: Double = 3.0
@@ -244,6 +244,16 @@ struct ScoutingFormView: View {
                                     .foregroundColor(.darkGreenFont)
                                     .font(.headline)
                                 ExpandableToggle(
+                                    title: "Passing",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $autoPassing
+                                )
+                                ExpandableToggle(
+                                    title: "Herding",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $autoHerding
+                                )
+                                ExpandableToggle(
                                     title: "Cycling",
                                     descriptionProvider: robotDescription,
                                     isOn: $autoCycling
@@ -333,9 +343,9 @@ struct ScoutingFormView: View {
                                         isOn: $inactive1Passing
                                     )
                                     ExpandableToggle(
-                                        title: "Ferrying",
+                                        title: "Herding",
                                         descriptionProvider: robotDescription,
-                                        isOn: $inactive1Ferrying
+                                        isOn: $inactive1Herding
                                     )
                                     ExpandableToggle(
                                         title: "Defense",
@@ -372,9 +382,9 @@ struct ScoutingFormView: View {
                                         isOn: $active1Passing
                                     )
                                     ExpandableToggle(
-                                        title: "Ferrying",
+                                        title: "Herding",
                                         descriptionProvider: robotDescription,
-                                        isOn: $active1Ferrying
+                                        isOn: $active1Herding
                                     )
                                     ExpandableToggle(
                                         title: "Cycling",
@@ -434,9 +444,9 @@ struct ScoutingFormView: View {
                                         isOn: $inactive2Passing
                                     )
                                     ExpandableToggle(
-                                        title: "Ferrying",
+                                        title: "Herding",
                                         descriptionProvider: robotDescription,
-                                        isOn: $inactive2Ferrying
+                                        isOn: $inactive2Herding
                                     )
                                     ExpandableToggle(
                                         title: "Defense",
@@ -473,9 +483,9 @@ struct ScoutingFormView: View {
                                         isOn: $active2Passing
                                     )
                                     ExpandableToggle(
-                                        title: "Ferrying",
+                                        title: "Herding",
                                         descriptionProvider: robotDescription,
-                                        isOn: $active2Ferrying
+                                        isOn: $active2Herding
                                     )
                                     ExpandableToggle(
                                         title: "Cycling",
@@ -536,9 +546,9 @@ struct ScoutingFormView: View {
                                         isOn: $active1Passing
                                     )
                                     ExpandableToggle(
-                                        title: "Ferrying",
+                                        title: "Herding",
                                         descriptionProvider: robotDescription,
-                                        isOn: $active1Ferrying
+                                        isOn: $active1Herding
                                     )
                                     ExpandableToggle(
                                         title: "Cycling",
@@ -598,11 +608,6 @@ struct ScoutingFormView: View {
                                         isOn: $inactive1Passing
                                     )
                                     ExpandableToggle(
-                                        title: "Ferrying",
-                                        descriptionProvider: robotDescription,
-                                        isOn: $inactive1Ferrying
-                                    )
-                                    ExpandableToggle(
                                         title: "Defense",
                                         descriptionProvider: robotDescription,
                                         isOn: $inactive1Defense
@@ -635,11 +640,6 @@ struct ScoutingFormView: View {
                                         title: "Passing",
                                         descriptionProvider: robotDescription,
                                         isOn: $active2Passing
-                                    )
-                                    ExpandableToggle(
-                                        title: "Ferrying",
-                                        descriptionProvider: robotDescription,
-                                        isOn: $active2Ferrying
                                     )
                                     ExpandableToggle(
                                         title: "Cycling",
@@ -699,11 +699,6 @@ struct ScoutingFormView: View {
                                         isOn: $inactive2Passing
                                     )
                                     ExpandableToggle(
-                                        title: "Ferrying",
-                                        descriptionProvider: robotDescription,
-                                        isOn: $inactive2Ferrying
-                                    )
-                                    ExpandableToggle(
                                         title: "Defense",
                                         descriptionProvider: robotDescription,
                                         isOn: $inactive2Defense
@@ -740,11 +735,6 @@ struct ScoutingFormView: View {
                                     isOn: $endgamePassing
                                 )
                                 ExpandableToggle(
-                                    title: "Ferrying",
-                                    descriptionProvider: robotDescription,
-                                    isOn: $endgameFerrying
-                                )
-                                ExpandableToggle(
                                     title: "Defense",
                                     descriptionProvider: robotDescription,
                                     isOn: $endgameDefense
@@ -777,15 +767,20 @@ struct ScoutingFormView: View {
                                         .padding(.vertical, 4)
                                     }
                                 }
-                                Toggle("Climbed L1", isOn: $climbL1)
-                                    .foregroundColor(.darkGreenFont)
-                                    .font(.headline)
-                                Toggle("Climbed L2", isOn: $climbL2)
-                                    .foregroundColor(.darkGreenFont)
-                                    .font(.headline)
-                                Toggle("Climbed L3", isOn: $climbL3)
-                                    .foregroundColor(.darkGreenFont)
-                                    .font(.headline)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Climbing")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+
+                                    Picker("", selection: $climb) {
+                                        Text("None").tag("None")
+                                        Text("L1").tag("L1")
+                                        Text("L2").tag("L2")
+                                        Text("L3").tag("L3")
+                                    }
+                                    .pickerStyle(.segmented)
+                                }
+                                .padding(.vertical, 8)
                                 VStack(alignment: .leading) {
                                     Text("Climb location")
                                         .font(.headline)
@@ -892,17 +887,21 @@ struct ScoutingFormView: View {
                                         .foregroundColor(.gray)
                                 }
                                 
-                                VStack(alignment: .leading) {
-                                    Text("Hopper capacity: \(Int(hopperCapacity)) fuel")
+                                // CHANGE THIS
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Hopper capacity: \(hopperCapacity)")
                                         .font(.headline)
                                         .foregroundColor(.darkGreenFont)
-                                        .padding(.bottom, 4)
+
+                                    Picker("", selection: $hopperCapacity) {
+                                        Text("None").tag("None")
+                                        Text("Small").tag("Small")
+                                        Text("Medium").tag("Medium")
+                                        Text("Large").tag("Large")
+                                    }
+                                    .pickerStyle(.segmented)
                                     
-                                    Slider(value: $hopperCapacity, in: 0...50, step: 10)
-                                        .accentColor(.greenTheme2)
-                                        .padding(.bottom, 4)
-                                    
-                                    Text(descriptionHopperCapacity(Int(hopperCapacity)))
+                                    Text(descriptionHopperCapacity(hopperCapacity))
                                         .font(.subheadline)
                                         .foregroundColor(.gray)
                                 }
@@ -1050,6 +1049,8 @@ struct ScoutingFormView: View {
             "Auto outpost": autoOutpost,
             "Auto depot": autoDepot,
             "Auto neutral": autoNeutral,
+            "Auto passing": autoPassing,
+            "Auto herding": autoHerding,
             "Auto cycling": autoCycling,
             "Auto cycles": autoCycles,
             "Auto climb": autoClimb,
@@ -1060,26 +1061,26 @@ struct ScoutingFormView: View {
             // Teleop
             "IA1 collecting": inactive1Collecting,
             "IA1 passing": inactive1Passing,
-            "IA1 ferrying": inactive1Ferrying,
+            "IA1 herding": inactive1Herding,
             "IA1 defense": inactive1Defense,
             "IA1 other": inactive1Other,
             
             "A1 shooting": active1Shooting,
             "A1 passing": active1Passing,
-            "A1 ferrying": active1Ferrying,
+            "A1 herding": active1Herding,
             "A1 cycling": active1Cycling,
             "A1 cycles": active1Cycles,
             "A1 other": active1Other,
             
             "IA2 collecting": inactive2Collecting,
             "IA2 passing": inactive2Passing,
-            "IA2 ferrying": inactive2Ferrying,
+            "IA2 herding": inactive2Herding,
             "IA2 defense": inactive2Defense,
             "IA2 other": inactive2Other,
             
             "A2 shooting": active2Shooting,
             "A2 passing": active2Passing,
-            "A2 ferrying": active2Ferrying,
+            "A2 herding": active2Herding,
             "A2 cycling": active2Cycling,
             "A2 cycles": active2Cycles,
             "A2 other": active2Other,
@@ -1087,13 +1088,11 @@ struct ScoutingFormView: View {
             // Endgame
             "Endgame shooting": endgameShooting,
             "Endgame passing": endgamePassing,
-            "Endgame ferrying": endgameFerrying,
+            "Endgame herding": endgameHerding,
             "Endgame defense": endgameDefense,
             "Endgame cycling": endgameCycling,
             "Endgame cycles": endgameCycles,
-            "Climb L1": climbL1,
-            "Climb L2": climbL2,
-            "Climb L3": climbL3,
+            "Climb": climb,
             "Climbing location": climbLocation,
             "Endgame other": endgameOther,
 
@@ -1108,7 +1107,7 @@ struct ScoutingFormView: View {
             // Comments
             "Driving score": Int(drivingScore),
             "Intake ability": Int(intakeAbility),
-            "Hopper capacity": Int(hopperCapacity),
+            "Hopper capacity": hopperCapacity,
             "Shot accuracy": Int(shotAccuracy),
             "Shooting location flexibility": Int(shootingLocationFlexibility),
             "Bump vs trench": Int(bumpVsTrench),
@@ -1141,6 +1140,8 @@ struct ScoutingFormView: View {
         autoOutpost = false
         autoDepot = false
         autoNeutral = false
+        autoPassing = false
+        autoHerding = false
         autoCycling = false
         autoCycles = 0
         autoClimb = false
@@ -1151,26 +1152,26 @@ struct ScoutingFormView: View {
         // Teleop
         inactive1Collecting = false
         inactive1Passing = false
-        inactive1Ferrying = false
+        inactive1Herding = false
         inactive1Defense = false
         inactive1Other = ""
         
         active1Shooting = false
         active1Passing = false
-        active1Ferrying = false
+        active1Herding = false
         active1Cycling = false
         active1Cycles = 0
         active1Other = ""
         
         inactive2Collecting = false
         inactive2Passing = false
-        inactive2Ferrying = false
+        inactive2Herding = false
         inactive2Defense = false
         inactive2Other = ""
         
         active2Shooting = false
         active2Passing = false
-        active2Ferrying = false
+        active2Herding = false
         active2Cycling = false
         active2Cycles = 0
         active2Other = ""
@@ -1178,13 +1179,11 @@ struct ScoutingFormView: View {
         // Endgame
         endgameShooting = false
         endgamePassing = false
-        endgameFerrying = false
+        endgameHerding = false
         endgameDefense = false
         endgameCycling = false
         endgameCycles = 0
-        climbL1 = false
-        climbL2 = false
-        climbL3 = false
+        climb = "None"
         climbLocation = ""
         endgameOther = ""
 
@@ -1198,7 +1197,7 @@ struct ScoutingFormView: View {
         // Comments
         drivingScore = 0.0
         intakeAbility = 0.0
-        hopperCapacity = 0.0
+        hopperCapacity = "None"
         shotAccuracy = 0.0
         shootingLocationFlexibility = 0.0
         bumpVsTrench = 3.0
@@ -1234,15 +1233,13 @@ struct ScoutingFormView: View {
         }
     }
     
-    func descriptionHopperCapacity (_ score: Int) -> String {
+    func descriptionHopperCapacity (_ score: String) -> String {
         switch score {
-        case 0: return "0 = No hopper"
-        case 10: return "10 = Hopper holds ~10 fuel"
-        case 20: return "20 = Hopper holds ~20 fuel"
-        case 30: return "30 = Hopper holds ~30 fuel"
-        case 40: return "40 = Hopper holds ~40 fuel"
-        case 50: return "50 = Hopper holds ~50 fuel"
-        default: return "Score out of range"
+        case "None": return "No hopper"
+        case "Small": return "Hopper holds around 1 to 15 fuel"
+        case "Medium": return "20 = Hopper holds around 15 to 30 fuel"
+        case "Large": return "30 = Hopper holds more than 30 fuel"
+        default: return "N/A"
         }
     }
     
@@ -1348,7 +1345,7 @@ struct ScoutingFormView: View {
         switch score {
         case "Collecting": return "Filling up hopper with fuel from neutral or opponent alliance zone."
         case "Passing": return "Intaking fuel and shooting it into their alliance zone."
-        case "Ferrying": return "Intaking fuel, driving to alliance zone, outtaking fuel in their alliance zone."
+        case "Herding": return "Pushing fuel to alliance zone without intaking."
         case "Defense": return "Collecting fuel from opponent alliance zone, blocking opponents' trench or bump, hitting opponent robots to slow them down, pinning opponent robots, etc."
         case "Shooting fuel in alliance zone": return "Intaking fuel from alliance zone and shooting it into hub."
         case "Cycling": return "Intaking fuel from neutral zone, driving to alliance zone, shooting into hub, drive back to neutral zone."

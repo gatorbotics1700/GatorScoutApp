@@ -19,7 +19,20 @@ struct PitscoutingFormView: View {
     @State private var selectedTeamNumber: String = ""
     @State private var selectedTeam: Int? = nil
     @State private var showResults = false
-    @State private var comments = ""
+    
+    @State private var intakeType = "Over"
+    @State private var intakeLocation = "Ground"
+    @State private var hopperCapacity: Double = 0.0
+    @State private var shooterType = "Turret"
+    @State private var shootLocation = "Move"
+    @State private var shotAccuracy: Double = 0.0
+    @State private var climb = ""
+    @State private var bump = false
+    @State private var trench = false
+    @State private var auto = ""
+    @State private var teleop = ""
+    @State private var endgame = ""
+    @State private var other = ""
 
     @State private var isSubmitting = false
     enum ActiveAlert: Identifiable {
@@ -148,14 +161,193 @@ struct PitscoutingFormView: View {
                                  .foregroundColor(.darkGreenFont)*/
                             }
                             
-                            Section(header: Text("Comments").font(.title3).foregroundColor(.darkGreenFont)) {
+                            Section(header: Text("Pitscouting").font(.title3).foregroundColor(.darkGreenFont)) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Over or under bumper intake")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+
+                                    Picker("", selection: $intakeType) {
+                                        Text("Over bumper").tag("Over")
+                                        Text("Under bumper").tag("Under")
+                                    }
+                                    .pickerStyle(.segmented)
+                                }
+                                .padding(.vertical, 8)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Intake location")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+
+                                    Picker("", selection: $intakeLocation) {
+                                        Text("Ground intake").tag("Ground")
+                                        Text("Outpost").tag("Outpost")
+                                        Text("Depot").tag("Depot")
+                                    }
+                                    .pickerStyle(.segmented)
+                                }
+                                .padding(.vertical, 8)
+                                
+                                
                                 VStack(alignment: .leading) {
-                                    Text("Comments")
+                                    Text("Hopper capacity: \(Int(hopperCapacity)) fuel")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    Slider(value: $hopperCapacity, in: 0...50, step: 5)
+                                        .accentColor(.greenTheme2)
+                                        .padding(.bottom, 4)
+                                    
+                                    Text(descriptionHopperCapacity(Int(hopperCapacity)))
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Turret or fixed shooter")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+
+                                    Picker("", selection: $shooterType) {
+                                        Text("Turret").tag("Turret")
+                                        Text("Fixed shooter").tag("Fixed")
+                                    }
+                                    .pickerStyle(.segmented)
+                                }
+                                .padding(.vertical, 8)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Shoot on the move or shoot in place")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+
+                                    Picker("", selection: $shootLocation) {
+                                        Text("Shoot on the move").tag("Move")
+                                        Text("Shoot in place").tag("Place")
+                                    }
+                                    .pickerStyle(.segmented)
+                                }
+                                .padding(.vertical, 8)
+                                
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Shot accuracy: \(Int(shotAccuracy))%")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                        .padding(.bottom, 4)
+                                    
+                                    Slider(value: $shotAccuracy, in: 0...100, step: 10)
+                                        .accentColor(.greenTheme2)
+                                        .padding(.bottom, 4)
+                                    
+                                    Text(descriptionShotAccuracy(Int(shotAccuracy)))
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                }
+                                
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Climb")
                                         .font(.headline)
                                         .foregroundColor(.darkGreenFont)
                                     
-                                    TextEditor(text: $comments)
+                                    Text("Climb location, L1, L2, L3, auto climb")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                    
+                                    TextEditor(text: $climb)
                                         .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                                .padding(.vertical)
+                                
+                                
+                                Toggle("Over bump", isOn: $bump)
+                                    .foregroundColor(.darkGreenFont)
+                                    .font(.headline)
+                                
+                                Toggle("Under trench", isOn: $trench)
+                                    .foregroundColor(.darkGreenFont)
+                                    .font(.headline)
+                                
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Auto")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                    
+                                    TextEditor(text: $auto)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                                .padding(.vertical)
+                                
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Teleop")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                    
+                                    TextEditor(text: $teleop)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                                .padding(.vertical)
+                                
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Endgame")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                    
+                                    TextEditor(text: $endgame)
+                                        .padding()
+                                        .background(Color.white.opacity(0.8))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.darkGreenFont)
+                                        .frame(height: 100)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.darkGreenFont, lineWidth: 1)
+                                        )
+                                }
+                                .padding(.vertical)
+                                
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Other")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                    
+                                    Text("Object detection, automated driving, etc")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                    
+                                    TextEditor(text: $other)
+                                        //.padding()
                                         .background(Color.white.opacity(0.8))
                                         .cornerRadius(8)
                                         .foregroundColor(.darkGreenFont)
@@ -230,7 +422,19 @@ struct PitscoutingFormView: View {
             "Username": username,
             // "Team number": teamNumber,
             "Team number": selectedTeamNumber,
-            "Comments": comments
+            "Intake type": intakeType,
+            "Intake location": intakeLocation,
+            "Hopper capacity": Int(hopperCapacity),
+            "Shooter type": shooterType,
+            "Shoot location": shootLocation,
+            "Shot accuracy": Int(shotAccuracy),
+            "Climb": climb,
+            "Bump": bump,
+            "Trench": trench,
+            "Auto": auto,
+            "Teleop": teleop,
+            "Endgame": endgame,
+            "Other": other
         ]
         
         FormSubmissionManager.shared.submitData(formData) { success in
@@ -250,7 +454,19 @@ struct PitscoutingFormView: View {
         selectedTeamNumber = ""
         selectedTeam = nil
         showResults = false
-        comments = ""
+        intakeType = "Over"
+        intakeLocation = "Ground"
+        hopperCapacity = 0.0
+        shooterType = "Turret"
+        shootLocation = "Move"
+        shotAccuracy = 0.0
+        climb = ""
+        bump = false
+        trench = false
+        auto = ""
+        teleop = ""
+        endgame = ""
+        other = ""
     }
     
     struct ExpandableToggle: View {
@@ -296,4 +512,39 @@ struct PitscoutingFormView: View {
             .padding(.vertical, 4)
         }
     }
+    
+    func descriptionHopperCapacity (_ score: Int) -> String {
+        switch score {
+        case 0: return "0 = No hopper"
+        case 5: return "5 = Hopper holds ~5 fuel"
+        case 10: return "10 = Hopper holds ~10 fuel"
+        case 15: return "15 = Hopper holds ~15 fuel"
+        case 20: return "20 = Hopper holds ~20 fuel"
+        case 25: return "25 = Hopper holds ~25 fuel"
+        case 30: return "30 = Hopper holds ~30 fuel"
+        case 35: return "35 = Hopper holds ~35 fuel"
+        case 40: return "40 = Hopper holds ~40 fuel"
+        case 45: return "45 = Hopper holds ~45 fuel"
+        case 50: return "50 = Hopper holds ~50 fuel"
+        default: return "Score out of range"
+        }
+    }
+    
+    func descriptionShotAccuracy(_ score: Int) -> String {
+        switch score {
+        case 0: return "0 = No shooting"
+        case 10: return "10 = Made ~10% of shots"
+        case 20: return "20 = Made ~20% of shots"
+        case 30: return "30 = Made ~30% of shots"
+        case 40: return "40 = Made ~40% of shots"
+        case 50: return "50 = Made ~50% of shots"
+        case 60: return "60 = Made ~60% of shots"
+        case 70: return "70 = Made ~70% of shots"
+        case 80: return "80 = Made ~80% of shots"
+        case 90: return "90 = Made ~90% of shots"
+        case 100: return "100 = Made all shots"
+        default: return "Score out of range"
+        }
+    }
+    
 }

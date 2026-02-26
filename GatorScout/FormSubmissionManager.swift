@@ -28,7 +28,7 @@ class FormSubmissionManager: ObservableObject {
     }
 
     private func sendDataToServer(_ formData: [String: Any], completion: @escaping (Bool) -> Void) {
-        let endpointURL = URL(string: "https://script.google.com/macros/s/AKfycbzcT7yi0KGLhhFpX001iP8tKdWlOVaoXjpKIrW5Wd3ezajX3SB5CevzO6fq4_v-XREW/exec")!
+        let endpointURL = URL(string: "https://script.google.com/macros/s/AKfycbwgdd0wM3uQJbfJ7xlaZ3-esUB_WDxe2p-eZ7_UQABExE5MmkyhNZOvU__lNhp2EFXMrg/exec")!
         var request = URLRequest(url: endpointURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
