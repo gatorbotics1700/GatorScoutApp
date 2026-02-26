@@ -735,6 +735,11 @@ struct ScoutingFormView: View {
                                     isOn: $endgamePassing
                                 )
                                 ExpandableToggle(
+                                    title: "Herding",
+                                    descriptionProvider: robotDescription,
+                                    isOn: $endgameHerding
+                                )
+                                ExpandableToggle(
                                     title: "Defense",
                                     descriptionProvider: robotDescription,
                                     isOn: $endgameDefense
