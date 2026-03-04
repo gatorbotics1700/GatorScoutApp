@@ -608,6 +608,11 @@ struct ScoutingFormView: View {
                                         isOn: $inactive1Passing
                                     )
                                     ExpandableToggle(
+                                        title: "Herding",
+                                        descriptionProvider: robotDescription,
+                                        isOn: $inactive1Herding
+                                    )
+                                    ExpandableToggle(
                                         title: "Defense",
                                         descriptionProvider: robotDescription,
                                         isOn: $inactive1Defense
@@ -640,6 +645,11 @@ struct ScoutingFormView: View {
                                         title: "Passing",
                                         descriptionProvider: robotDescription,
                                         isOn: $active2Passing
+                                    )
+                                    ExpandableToggle(
+                                        title: "Herding",
+                                        descriptionProvider: robotDescription,
+                                        isOn: $active2Herding
                                     )
                                     ExpandableToggle(
                                         title: "Cycling",
@@ -697,6 +707,11 @@ struct ScoutingFormView: View {
                                         title: "Passing",
                                         descriptionProvider: robotDescription,
                                         isOn: $inactive2Passing
+                                    )
+                                    ExpandableToggle(
+                                        title: "Herding",
+                                        descriptionProvider: robotDescription,
+                                        isOn: $inactive2Herding
                                     )
                                     ExpandableToggle(
                                         title: "Defense",
