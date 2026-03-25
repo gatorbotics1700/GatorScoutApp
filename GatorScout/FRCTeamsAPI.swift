@@ -16,7 +16,7 @@ class TeamsViewModel: ObservableObject {
     @Published var teams: [Team] = []
 
     func fetchTeams() {
-        guard let url = URL(string: "https://frc-api.firstinspires.org/v3.0/2026/teams?eventCode=CASNV") else { return } // Silicon Valley: CASNV, East Bay: CAETB, NorCal: CANCMP
+        guard let url = URL(string: "https://frc-api.firstinspires.org/v3.0/2026/teams?eventCode=CAETB") else { return } // Silicon Valley: CASNV, East Bay: CAETB, NorCal: CANCMP
         var request = URLRequest(url: url)
         let username = "gatorbotics1700" // API token needs to be updated once every 3 years, current from 2/27/26
         let password = "ba7908be-3845-40b8-b862-8959e2357085"
