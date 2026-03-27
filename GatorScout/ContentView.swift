@@ -14,7 +14,7 @@ struct ScoutingFormView: View {
     @State private var showResults = false
     @State private var matchNumber = ""
     @State private var allianceColor = "Red"
-    @State private var switchfieldOrientation = false
+    @State private var switchFieldOrientation = false
 
     // Auto
     @State private var autoMove = false
@@ -206,13 +206,13 @@ struct ScoutingFormView: View {
                                         .stroke(Color.gray.opacity(0.35))
                                 )
                                 
-                                Toggle("Field orientation", isOn: $switchfieldOrientation)
+                                Toggle("Field orientation", isOn: $switchFieldOrientation)
                                     .foregroundColor(.darkGreenFont)
                                     .font(.headline)
                                 Image("FieldMap")
                                     .resizable()
                                     .scaledToFit()
-                                    .rotationEffect(switchfieldOrientation ? .degrees(0) : .degrees(180))
+                                    .rotationEffect(switchFieldOrientation ? .degrees(0) : .degrees(180))
                             }
                             
                             Section(header: Text("Auto").font(.title3).foregroundColor(.darkGreenFont)) {
@@ -312,19 +312,24 @@ struct ScoutingFormView: View {
                                         isOn: $shooting
                                     )
                                     
+                                    Text("From where did they shoot?")
+                                        .font(.headline)
+                                        .foregroundColor(.darkGreenFont)
+                                    
                                     GeometryReader { geo in
+                                        
                                         ZStack {
                                             if allianceColor == "Blue" {
                                                 Image("BlueAlliance")
                                                     .resizable()
                                                     .scaledToFit()
-                                                    .rotationEffect(.degrees(switchfieldOrientation ? 0 : 180))
+                                                    .rotationEffect(.degrees(switchFieldOrientation ? 0 : 180))
                                                     .frame(width: geo.size.width, height: geo.size.height)
                                             } else {
                                                 Image("RedAlliance")
                                                     .resizable()
                                                     .scaledToFit()
-                                                    .rotationEffect(.degrees(switchfieldOrientation ? 0 : 180))
+                                                    .rotationEffect(.degrees(switchFieldOrientation ? 0 : 180))
                                                     .frame(width: geo.size.width, height: geo.size.height)
                                             }
 
@@ -332,13 +337,15 @@ struct ScoutingFormView: View {
                                                 ForEach(0..<rows, id: \.self) { i in
                                                     HStack(spacing: 0) {
                                                         ForEach(0..<cols, id: \.self) { j in
-                                                            let mappedRow = switchfieldOrientation ? (rows - 1 - i) : i
-                                                            let mappedCol = switchfieldOrientation ? (cols - 1 - j) : j
+                                                            let shouldFlip = switchFieldOrientation != (allianceColor == "Blue")
+                                                            let mappedRow = shouldFlip ? (rows - 1 - i) : i
+                                                            let mappedCol = shouldFlip ? (cols - 1 - j) : j
                                                             let index = mappedRow * cols + mappedCol
 
                                                             Rectangle()
                                                                 .fill(shootingLocation[index] ? Color.green.opacity(0.4) : Color.clear)
                                                                 .border(Color.white.opacity(0.5))
+                                                                .contentShape(Rectangle())
                                                                 .onTapGesture {
                                                                     shootingLocation[index].toggle()
                                                                 }
